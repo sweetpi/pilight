@@ -1,8 +1,8 @@
-pilite = require('./build/Release/pilite')
-pilite.setLogCallback( (prio, line) => console.log "log", prio, line)
-pilite.setBroadcastCallback( (message) => console.log "broadcast", message);
+pilightjs = require('./build/Release/pilightjs')
+pilightjs.setLogCallback( (prio, line) => console.log "log", prio, line)
+pilightjs.setBroadcastCallback( (message) => console.log "broadcast", message);
 console.log "before start"
-pilite.startDaemon(JSON.stringify({
+pilightjs.startDaemon(JSON.stringify({
   "log-level": 4,
   "port": 5000,
   "standalone": 1,
@@ -72,7 +72,7 @@ pilite.startDaemon(JSON.stringify({
 console.log "after start"
 
 setTimeout( =>
-  pilite.sendMessage(JSON.stringify(
+  pilightjs.sendMessage(JSON.stringify(
     "message": "send",
     "code": {
       "protocol": ["generic_switch"],

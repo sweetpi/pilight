@@ -174,4 +174,4 @@ void init(Handle<Object> exports) {
 }
 
 
-NODE_MODULE(pilite, init)
+NODE_MODULE(pilightjs, init)

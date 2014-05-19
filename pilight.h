@@ -130,7 +130,7 @@
 #endif
 
 #ifdef NODEJS_MODULE
-	#define HASH "pilite"
+	#define HASH "pilightjs"
 #endif
 
 typedef struct pilight_t {

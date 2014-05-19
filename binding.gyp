@@ -5,8 +5,7 @@
    		'type': 'static_library',
         'defines': [
           'NODEJS_MODULE',
-          'UPDATE',
-          'FIRMWARE',
+          'UPDATE'
         ],
         "include_dirs": [
             'libs/pilight',
@@ -18,7 +17,7 @@
         ],
         "sources": [ 
           '<!@(ls -1 libs/hardware/*.c)',
-          '<!@(ls -1 libs/pilight/*.c|sed "s/webserver.c//g")',
+          '<!@(ls -1 libs/pilight/*.c|sed -e "s/webserver.c//g" -e "s/mongoose.c//g")',
           '<!@(ls -1 libs/protocols/*.c)',
           '<!@(ls -1 libs/avrdude/*.c)',
           "daemon.c",
@@ -27,7 +26,7 @@
         'libraries': []
     },
     {
-        "target_name": "pilite",
+        "target_name": "pilightjs",
         'defines': [
             'NODEJS_MODULE',
         ],
