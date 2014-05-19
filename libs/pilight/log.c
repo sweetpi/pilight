@@ -60,6 +60,7 @@ int log_gc(void) {
 	return 1;
 }
 
+#ifndef NODEJS_MODULE
 void logprintf(int prio, const char *format_str, ...) {
 	int save_errno = errno;
 	char line[1024];
@@ -139,6 +140,43 @@ void logprintf(int prio, const char *format_str, ...) {
 	}
 	errno = save_errno;
 }
+#else
+
+void (*logcallback)(int, char*) = NULL;
+void log_setcallback(void (*lcb)(int, char*)) {
+	logcallback = lcb;
+}
+
+
+void logprintf(int prio, const char *format_str, ...) {
+	int save_errno = errno;
+	char line[1024];
+	va_list ap;
+	struct stat sb;
+
+	memset(line, '\0', 1024);
+	va_start(ap, format_str);
+	// if(prio==LOG_DEBUG)
+	// 	strcat(line, "DEBUG: ");
+	// if(prio==LOG_WARNING)
+	// 	strcat(line, "WARNING: ");
+	// if(prio==LOG_ERR)
+	// 	strcat(line, "ERROR: ");
+	// if(prio==LOG_INFO)
+	// 	strcat(line, "INFO: ");
+	// if(prio==LOG_NOTICE)
+	// 	strcat(line, "NOTICE: ");
+	vsprintf(&line[strlen(line)], format_str, ap);
+	if(logcallback != NULL){
+		logcallback(prio, line);
+	}
+	va_end(ap);
+
+	errno = save_errno;
+}
+
+
+#endif
 
 void logperror(int prio, const char *s) {
 	// int save_errno = errno;

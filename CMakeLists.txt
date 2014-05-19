@@ -22,12 +22,6 @@ find_library(CMAKE_ZLIB_LIBS_INIT
                     /usr/lib/arm-linux-gnueabihf
 			NO_DEFAULT_PATH)
 			
-message(STATUS "Looking for libz")
-if(${CMAKE_ZLIB_LIBS_INIT} MATCHES "CMAKE_ZLIB_LIBS_INIT-NOTFOUND")
-	message(FATAL_ERROR "Looking for libz - not found")
-else()
-	message(STATUS "Looking for libz - found (${CMAKE_ZLIB_LIBS_INIT})")
-endif()
 
 if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "armv6")
 	if(${USE_SOFT_FLOAT} MATCHES "OFF")

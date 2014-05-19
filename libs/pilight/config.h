@@ -126,6 +126,9 @@ int config_parse(JsonNode *root);
 int config_write(char *content);
 int config_read(void);
 int config_set_file(char *cfgfile);
+#ifdef NODEJS_MODULE
+int config_set_from_string(const char *content);
+#endif
 int config_gc(void);
 
 #endif

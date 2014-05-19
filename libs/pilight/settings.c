@@ -208,6 +208,7 @@ int settings_parse(JsonNode *root) {
 				have_error = 1;
 				goto clear;
 			} else if(strlen(jsettings->string_) > 0) {
+#ifndef NODEJS_MODULE
 				if(settings_file_exists(jsettings->string_) == EXIT_SUCCESS) {
 					settings_add_string(jsettings->key, jsettings->string_);
 				} else {
@@ -215,6 +216,10 @@ int settings_parse(JsonNode *root) {
 					have_error = 1;
 					goto clear;
 				}
+#else
+				settings_add_string(jsettings->key, jsettings->string_);
+#endif				
+
 			}
 		} else if(strcmp(jsettings->key, "whitelist") == 0) {
 			if(!jsettings->string_) {
@@ -432,7 +437,9 @@ clear:
 	return have_error;
 }
 
+
 int settings_write(char *content) {
+#ifndef NODEJS_MODULE
 	FILE *fp;
 
 	/* Overwrite config file with proper format */
@@ -443,9 +450,11 @@ int settings_write(char *content) {
 	fseek(fp, 0L, SEEK_SET);
  	fwrite(content, sizeof(char), strlen(content), fp);
 	fclose(fp);
-
+#endif
 	return EXIT_SUCCESS;
 }
+
+
 
 int settings_gc(void) {
 	struct settings_t *tmp;
@@ -511,6 +520,26 @@ int settings_read(void) {
 	sfree((void *)&content);
 	return EXIT_SUCCESS;
 }
+
+#ifdef NODEJS_MODULE
+int settings_set_from_string(char *content) {
+	JsonNode *root;
+
+	/* Validate JSON and turn into JSON object */
+	if(json_validate(content) == false) {
+		logprintf(LOG_ERR, "settings are not in a valid json format", content);
+		return EXIT_FAILURE;
+	}
+	root = json_decode(content);
+	if(settings_parse(root) != 0) {
+		json_delete(root);
+		return EXIT_FAILURE;
+	}
+	json_delete(root);
+	return EXIT_SUCCESS;
+}
+#endif
+
 
 int settings_set_file(char *settfile) {
 	if(access(settfile, R_OK | W_OK) != -1) {

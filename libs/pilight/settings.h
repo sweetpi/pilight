@@ -43,5 +43,7 @@ int settings_write(char *content);
 int settings_read(void);
 int settings_set_file(char *settfile);
 int settings_gc(void);
-
+#ifdef NODEJS_MODULE
+int settings_set_from_string(char *content);
+#endif
 #endif

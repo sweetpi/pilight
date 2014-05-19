@@ -126,6 +126,7 @@ int hardware_gc(void) {
 }
 
 int hardware_write(char *content) {
+#ifndef NODEJS_MODULE
 	FILE *fp;
 
 	/* Overwrite config file with proper format */
@@ -136,7 +137,7 @@ int hardware_write(char *content) {
 	fseek(fp, 0L, SEEK_SET);
  	fwrite(content, sizeof(char), strlen(content), fp);
 	fclose(fp);
-
+#endif
 	return EXIT_SUCCESS;
 }
 
@@ -364,6 +365,32 @@ int hardware_read(void) {
 	sfree((void *)&content);
 	return EXIT_SUCCESS;
 }
+
+#ifdef NODEJS_MODULE
+int hardware_set_from_string(const char* content) {
+	JsonNode *root;
+	/* Validate JSON and turn into JSON object */
+	if(json_validate(content) == false) {
+		logprintf(LOG_ERR, "hardware file is not in a valid json format", content);
+		return EXIT_FAILURE;
+	}
+
+	root = json_decode(content);
+
+	if(hardware_parse(root) != 0) {
+		return EXIT_FAILURE;
+	}
+
+	if(!conf_hardware) {	
+		json_delete(root);
+		root = json_decode("{\"none\":{}}");
+		hardware_parse(root);
+	}
+
+	json_delete(root);
+	return EXIT_SUCCESS;
+}
+#endif
 
 int hardware_set_file(char *file) {
 	if(access(file, R_OK | W_OK) != -1) {

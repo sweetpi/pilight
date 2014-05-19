@@ -31,5 +31,8 @@ void log_file_set(char *file);
 void log_level_set(int level);
 int log_level_get(void);
 int log_gc(void);
+#ifdef NODEJS_MODULE
+void log_setcallback(void (*logcallback)(int, char*));
+#endif
 
 #endif

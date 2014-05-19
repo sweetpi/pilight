@@ -66,6 +66,9 @@ int hardware_gc(void);
 int hardware_set_file(char *file);
 int hardware_read(void);
 int hardware_parse(JsonNode *root);
+#ifdef NODEJS_MODULE
 int hardware_write(char *content);
+#endif
+int hardware_set_from_string(const char* content);
 
 #endif

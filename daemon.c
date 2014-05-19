@@ -67,12 +67,12 @@ typedef enum {
 } client_type_t;
 
 char clients[6][11] = {
-	"receiver\0",
-	"sender\0",
-	"controller\0",
-	"node\0",
-	"gui\0",
-	"web\0"
+	"receiver",
+	"sender",
+	"controller",
+	"node",
+	"gui",
+	"web"
 };
 
 typedef struct nodes_t {
@@ -253,6 +253,13 @@ void broadcast_queue(char *protoname, JsonNode *json) {
 	pthread_cond_signal(&bcqueue_signal);
 }
 
+#ifdef NODEJS_MODULE
+void (*broadcast_callback)(char*) = NULL;
+void broadcast_setcallback(void (*cb)(char*)) {
+	broadcast_callback = cb;
+}
+#endif
+
 void *broadcast(void *param) {
 
 	int i = 0, broadcasted = 0;
@@ -268,6 +275,14 @@ void *broadcast(void *param) {
 			/* Update the config */
 			if(config_update(bcqueue->protoname, bcqueue->jmessage, &jret) == 0) {
 				char *conf = json_stringify(jret, NULL);
+
+				#ifdef NODEJS_MODULE
+				if(broadcast_callback != NULL) {
+					broadcast_callback(conf);	
+				}
+				#endif
+
+
 				for(i=0;i<MAX_CLIENTS;i++) {
 					if(handshakes[i] == GUI) {
 						socket_write(socket_get_clients(i), conf);
@@ -302,6 +317,12 @@ void *broadcast(void *param) {
 			}
 
 			char *jbroadcast = json_stringify(bcqueue->jmessage, NULL);
+
+			#ifdef NODEJS_MODULE
+			if(broadcast_callback != NULL) {
+				broadcast_callback(jbroadcast);	
+			}
+			#endif
 
 			if(strcmp(bcqueue->protoname, "pilight_firmware") == 0) {
 				JsonNode *code = NULL;
@@ -820,6 +841,14 @@ void client_sender_parse_code(int i, JsonNode *json) {
 
 	send_queue(json);
 }
+
+#ifdef NODEJS_MODULE
+void send_message(char* message) {
+	JsonNode *json = json_decode(message);
+	send_queue(json);
+	json_delete(json);
+}
+#endif
 
 void control_device(struct conf_devices_t *dev, char *state, JsonNode *values) {
 	struct conf_settings_t *sett = NULL;
@@ -1502,7 +1531,9 @@ int main_gc(void) {
 		sfree((void *)&tmp_nodes);
 	}
 
+#ifndef NODEJS_MODULE
 	if(running == 0) {
+
 		/* Remove the stale pid file */
 		if(access(pid_file, F_OK) != -1) {
 			if(remove(pid_file) != -1) {
@@ -1512,10 +1543,12 @@ int main_gc(void) {
 			}
 		}
 	}
+#endif
 
 	if(pid_file_free) {
 		sfree((void *)&pid_file);
 	}
+
 
 #ifdef WEBSERVER
 	if(webserver_enable == 1) {
@@ -1554,7 +1587,11 @@ int main_gc(void) {
 	return 0;
 }
 
+#ifndef NODEJS_MODULE
 int main(int argc, char **argv) {
+#else
+int start_daemon(const char* settingsContent) {
+#endif
 
 	struct ifaddrs *ifaddr, *ifa;
 	int family = 0;
@@ -1650,6 +1687,8 @@ int main(int argc, char **argv) {
 
 	memset(buffer, '\0', BUFFER_SIZE);
 
+#ifndef NODEJS_MODULE
+	//Option parsing
 	options_add(&options, 'H', "help", OPTION_NO_VALUE, 0, JSON_NULL, NULL, NULL);
 	options_add(&options, 'V', "version", OPTION_NO_VALUE, 0, JSON_NULL, NULL, NULL);
 	options_add(&options, 'D', "nodaemon", OPTION_NO_VALUE, 0, JSON_NULL, NULL, NULL);
@@ -1694,6 +1733,11 @@ int main(int argc, char **argv) {
 		}
 	}
 	options_delete(options);
+#else
+	nodaemon = 1;
+	show_help = 0;
+	show_version = 0;
+#endif
 
 	if(show_help) {
 		printf("Usage: %s [options]\n", progname);
@@ -1731,6 +1775,7 @@ int main(int argc, char **argv) {
 		return (EXIT_FAILURE);
 	}
 
+#ifndef NODEJS_MODULE
 	if(access(settingsfile, F_OK) != -1) {
 		if(settings_read() != 0) {
 			sfree((void *)&settingsfile);
@@ -1738,6 +1783,11 @@ int main(int argc, char **argv) {
 		}
 		sfree((void *)&settingsfile);
 	}
+#else
+	if(settings_set_from_string(settingsContent) != 0) {
+		goto clear;
+	}
+#endif
 
 #ifdef WEBSERVER
 	settings_find_number("webserver-enable", &webserver_enable);
@@ -1767,6 +1817,7 @@ int main(int argc, char **argv) {
 	settings_find_number("update-check", &update_check);
 #endif
 
+#ifndef NODEJS_MODULE
 	if(settings_find_string("pid-file", &pid_file) != 0) {
 		pid_file = realloc(pid_file, strlen(PID_FILE)+1);
 		if(!pid_file) {
@@ -1797,6 +1848,9 @@ int main(int argc, char **argv) {
 		goto clear;
 	}
 	close(f);
+#else
+	running = 0;
+#endif
 
 	if(settings_find_number("log-level", &itmp) == 0) {
 		itmp += 2;
@@ -1834,6 +1888,7 @@ int main(int argc, char **argv) {
 	/* Initialize protocols */
 	protocol_init();
 
+#ifndef NODEJS_MODULE
 	if(settings_find_string("hardware-file", &hwfile) == 0) {
 		hardware_set_file(hwfile);
 		if(hardware_read() == EXIT_FAILURE) {
@@ -1844,6 +1899,15 @@ int main(int argc, char **argv) {
 		hardware_parse(root);
 		json_delete(root);
 	}
+#else
+	if(settings_find_string("hardware-file", &hwfile) == 0) {
+		hardware_set_from_string(hwfile);
+	} else {
+		JsonNode *root = json_decode("{\"none\":{}}");
+		hardware_parse(root);
+		json_delete(root);
+	}
+#endif
 
 	settings_find_number("port", &port);
 	settings_find_number("standalone", &standalone);
@@ -1860,7 +1924,12 @@ int main(int argc, char **argv) {
 		}
 	}
 
+
 	if(runmode == 1) {
+	
+
+
+#ifndef NODEJS_MODULE
 		if(settings_find_string("config-file", &stmp) == 0) {
 			if(config_set_file(stmp) == 0) {
 				if(config_read() != 0) {
@@ -1874,16 +1943,31 @@ int main(int argc, char **argv) {
 				}
 			}
 		}
+#else
+		if(settings_find_string("config-file", &stmp) == 0) {
+			if(config_set_from_string(stmp) != 0) {
+				goto clear;
+			} else {
+				receivers++;
+			}
+			if(log_level_get() >= LOG_DEBUG) {
+				config_print();
+			}
+		}
+#endif
 
 		socket_start((unsigned short)port);
 		if(standalone == 0) {
 			ssdp_start();
 		}
 	}
+
 	if(nodaemon == 0) {
 		daemonize();
 	} else {
+#ifndef NODEJS_MODULE
 		save_pid(getpid());
+#endif
 	}
 
 	pthread_mutexattr_init(&sendqueue_attr);

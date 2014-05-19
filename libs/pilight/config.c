@@ -1756,6 +1756,7 @@ clear:
 // }
 
 int config_write(char *content) {
+#ifdef NODEJS_MODULE
 	FILE *fp;
 
 	if(access(configfile, F_OK) != -1) {
@@ -1773,7 +1774,7 @@ int config_write(char *content) {
 	} else {
 		logprintf(LOG_ERR, "the config file %s does not exists\n", configfile);
 	}
-
+#endif
 	return EXIT_SUCCESS;
 }
 
@@ -1894,6 +1895,28 @@ int config_read() {
 		return EXIT_FAILURE;
 	}
 }
+
+#ifdef NODEJS_MODULE
+int config_set_from_string(const char *content) {
+	JsonNode *root;
+	/* Validate JSON and turn into JSON object */
+	if(json_validate(content) == false) {
+		logprintf(LOG_ERR, "settings are not in a valid json format", content);
+		return EXIT_FAILURE;
+	}
+	root = json_decode(content);
+	if(config_parse(root) == 0 && config_validate_settings() == 0) {
+		json_delete(root);
+		root = NULL;
+		return EXIT_SUCCESS;
+	} else {
+		json_delete(root);
+		root = NULL;
+		return EXIT_FAILURE;
+	}
+}
+#endif
+
 
 int config_set_file(char *cfgfile) {
 	if(access(cfgfile, F_OK) != -1) {
